@@ -21,6 +21,10 @@
 // C Standard Library
 #include <stdio.h>
 
+#include <vector>
+#include <memory>
+using namespace std;
+
 // libusb
 #include <libusb.h>
 
@@ -301,29 +305,29 @@ bool BridgeManager::Initialise(void)
 
 bool BridgeManager::BeginSession(void) const
 {
-	InterfaceManager::Print("Beginning session...\n");
+	if (!deviceHandle)
+		return false;
 
-	unsigned char *dataBuffer = new unsigned char[7];
+	InterfaceManager::Print("Beginning session...\n");
 
 	int result = libusb_control_transfer(deviceHandle, LIBUSB_REQUEST_TYPE_CLASS, 0x22, 0x3, 0, nullptr, 0, 1000);
 
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
-	memset(dataBuffer, 0, 7);
+	vector<unsigned char> dataBuffer(7, 0);
+
 	dataBuffer[1] = 0xC2;
 	dataBuffer[2] = 0x01;
 	dataBuffer[6] = 0x07;
 
-	result = libusb_control_transfer(deviceHandle, LIBUSB_REQUEST_TYPE_CLASS, 0x20, 0x0, 0, dataBuffer, 7, 1000);
+	result = libusb_control_transfer(deviceHandle, LIBUSB_REQUEST_TYPE_CLASS, 0x20, 0x0, 0, &dataBuffer.front(), 7, 1000);
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -331,7 +335,6 @@ bool BridgeManager::BeginSession(void) const
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -339,20 +342,18 @@ bool BridgeManager::BeginSession(void) const
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
-	memset(dataBuffer, 0, 7);
+	dataBuffer.assign(7, 0);
 	dataBuffer[1] = 0xC2;
 	dataBuffer[2] = 0x01;
 	dataBuffer[6] = 0x08;
 
-	result = libusb_control_transfer(deviceHandle, LIBUSB_REQUEST_TYPE_CLASS, 0x20, 0x0, 0, dataBuffer, 7, 1000);
+	result = libusb_control_transfer(deviceHandle, LIBUSB_REQUEST_TYPE_CLASS, 0x20, 0x0, 0, &dataBuffer.front(), 7, 1000);
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -360,7 +361,6 @@ bool BridgeManager::BeginSession(void) const
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("Failed to initialise usb communication!\n");
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -369,17 +369,16 @@ bool BridgeManager::BeginSession(void) const
 	int dataTransferred;
 
 	// Send "ODIN"
-	strcpy((char *)dataBuffer, "ODIN");
+	strcpy((char*)&dataBuffer.front(), "ODIN");
 
-	result = libusb_bulk_transfer(deviceHandle, outEndpoint, dataBuffer, 4, &dataTransferred, 1000);
+	result = libusb_bulk_transfer(deviceHandle, outEndpoint, &dataBuffer.front(), 4, &dataTransferred, 1000);
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("   Failed!\n");
 
 		if (verbose)
-			InterfaceManager::PrintError("ERROR: Failed to send data: \"%s\"\n", dataBuffer);
+			InterfaceManager::PrintError("ERROR: Failed to send data: \"%s\"\n", (char*)&dataBuffer.front());
 
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -388,34 +387,31 @@ bool BridgeManager::BeginSession(void) const
 		InterfaceManager::PrintError("   Failed!\n");
 
 		if (verbose)
-			InterfaceManager::PrintError("ERROR: Failed to complete sending data: \"%s\"\n", dataBuffer);
+			InterfaceManager::PrintError("ERROR: Failed to complete sending data: \"%s\"\n", (char*)&dataBuffer.front());
 
-		delete [] dataBuffer;
 		return (false);
 	}
 
 	// Expect "LOKE"
-	memset(dataBuffer, 0, 7);
+	dataBuffer.assign(7, 0);
 
-	result = libusb_bulk_transfer(deviceHandle, inEndpoint, dataBuffer, 7, &dataTransferred, 1000);
+	result = libusb_bulk_transfer(deviceHandle, inEndpoint, &dataBuffer.front(), 7, &dataTransferred, 1000);
 	if (result < 0)
 	{
 		InterfaceManager::PrintError("   Failed!\n");
 
 		if (verbose)
 			InterfaceManager::PrintError("ERROR: Failed to receive response\n");
-		delete [] dataBuffer;
 		return (false);;
 	}
 
-	if (dataTransferred != 4 || memcmp(dataBuffer, "LOKE", 4) != 0)
+	if (dataTransferred != 4 || memcmp(&dataBuffer.front(), "LOKE", 4) != 0)
 	{
 		InterfaceManager::PrintError("   Failed!\n");
 
 		if (verbose)
-			InterfaceManager::PrintError("ERROR: Unexpected communication.\nExpected: \"%s\"\nReceived: \"%s\"\n", "LOKE", dataBuffer);
+			InterfaceManager::PrintError("ERROR: Unexpected communication.\nExpected: \"%s\"\nReceived: \"%s\"\n", "LOKE", (char*)&dataBuffer.front());
 
-		delete [] dataBuffer;
 		return (false);
 	}
 
@@ -427,9 +423,8 @@ bool BridgeManager::EndSession(void) const
 {
 	InterfaceManager::Print("Ending session...\n");
 
-	EndSessionPacket *endSessionPacket = new EndSessionPacket(EndSessionPacket::kRequestEndSession);
-	bool success = SendPacket(endSessionPacket);
-	delete endSessionPacket;
+	EndSessionPacket endSessionPacket(EndSessionPacket::kRequestEndSession);
+	bool success = SendPacket(&endSessionPacket);
 
 	if (!success)
 	{
@@ -437,9 +432,8 @@ bool BridgeManager::EndSession(void) const
 		return (false);
 	}
 
-	ResponsePacket *endSessionResponse = new ResponsePacket(ResponsePacket::kResponseTypeEndSession);
-	success = ReceivePacket(endSessionResponse);
-	delete endSessionResponse;
+	ResponsePacket endSessionResponse = ResponsePacket(ResponsePacket::kResponseTypeEndSession);
+	success = ReceivePacket(&endSessionResponse);
 
 	if (!success)
 	{
@@ -452,6 +446,9 @@ bool BridgeManager::EndSession(void) const
 
 bool BridgeManager::SendPacket(OutboundPacket *packet, int timeout) const
 {
+	if (!deviceHandle)
+		return false;
+
 	packet->Pack();
 
 	int dataTransferred;
@@ -500,6 +497,9 @@ bool BridgeManager::SendPacket(OutboundPacket *packet, int timeout) const
 
 bool BridgeManager::ReceivePacket(InboundPacket *packet, int timeout) const
 {
+	if (!deviceHandle)
+		return false;
+
 	int dataTransferred;
 	int result = libusb_bulk_transfer(deviceHandle, inEndpoint, packet->GetData(), packet->GetSize(),
 		&dataTransferred, timeout);
@@ -559,9 +559,8 @@ bool BridgeManager::SendPitFile(FILE *file) const
 	rewind(file);
 
 	// Start file transfer
-	PitFilePacket *pitFilePacket = new PitFilePacket(PitFilePacket::kRequestFlash);
-	bool success = SendPacket(pitFilePacket);
-	delete pitFilePacket;
+	PitFilePacket pitFilePacket(PitFilePacket::kRequestFlash);
+	bool success = SendPacket(&pitFilePacket);
 
 	if (!success)
 	{
@@ -569,9 +568,8 @@ bool BridgeManager::SendPitFile(FILE *file) const
 		return (false);
 	}
 
-	PitFileResponse *pitFileResponse = new PitFileResponse();
-	success = ReceivePacket(pitFileResponse);
-	delete pitFileResponse;
+	PitFileResponse pitFileResponse;
+	success = ReceivePacket(&pitFileResponse);
 
 	if (!success)
 	{
@@ -580,9 +578,8 @@ bool BridgeManager::SendPitFile(FILE *file) const
 	}
 
 	// Transfer file size
-	FlashPartPitFilePacket *flashPartPitFilePacket = new FlashPartPitFilePacket(fileSize);
-	success = SendPacket(flashPartPitFilePacket);
-	delete flashPartPitFilePacket;
+	FlashPartPitFilePacket flashPartPitFilePacket(fileSize);
+	success = SendPacket(&flashPartPitFilePacket);
 
 	if (!success)
 	{
@@ -590,9 +587,7 @@ bool BridgeManager::SendPitFile(FILE *file) const
 		return (false);
 	}
 
-	pitFileResponse = new PitFileResponse();
-	success = ReceivePacket(pitFileResponse);
-	delete pitFileResponse;
+	success = ReceivePacket(&pitFileResponse);
 
 	if (!success)
 	{
@@ -601,9 +596,8 @@ bool BridgeManager::SendPitFile(FILE *file) const
 	}
 
 	// Flash pit file
-	SendFilePartPacket *sendFilePartPacket = new SendFilePartPacket(file, fileSize);
-	success = SendPacket(sendFilePartPacket);
-	delete sendFilePartPacket;
+	SendFilePartPacket sendFilePartPacket(file, fileSize);
+	success = SendPacket(&sendFilePartPacket);
 
 	if (!success)
 	{
@@ -611,9 +605,7 @@ bool BridgeManager::SendPitFile(FILE *file) const
 		return (false);
 	}
 
-	pitFileResponse = new PitFileResponse();
-	success = ReceivePacket(pitFileResponse);
-	delete pitFileResponse;
+	success = ReceivePacket(&pitFileResponse);
 
 	if (!success)
 	{
@@ -624,16 +616,16 @@ bool BridgeManager::SendPitFile(FILE *file) const
 	return (true);
 }
 
-int BridgeManager::ReceivePitFile(unsigned char **pitBuffer) const
+int BridgeManager::ReceivePitFile(vector<unsigned char> *pitBuffer) const
 {
-	*pitBuffer = nullptr;
+	if (!pitBuffer)
+		return (0);
 
 	bool success;
 
 	// Start file transfer
-	PitFilePacket *pitFilePacket = new PitFilePacket(PitFilePacket::kRequestDump);
-	success = SendPacket(pitFilePacket);
-	delete pitFilePacket;
+	PitFilePacket pitFilePacket(PitFilePacket::kRequestDump);
+	success = SendPacket(&pitFilePacket);
 
 	if (!success)
 	{
@@ -641,10 +633,10 @@ int BridgeManager::ReceivePitFile(unsigned char **pitBuffer) const
 		return (0);
 	}
 
-	PitFileResponse *pitFileResponse = new PitFileResponse();
-	success = ReceivePacket(pitFileResponse);
-	int fileSize = pitFileResponse->GetFileSize();
-	delete pitFileResponse;
+	PitFileResponse pitFileResponse;
+	success = ReceivePacket(&pitFileResponse);
+	int fileSize = pitFileResponse.GetFileSize();
+
 
 	if (!success)
 	{
@@ -656,61 +648,50 @@ int BridgeManager::ReceivePitFile(unsigned char **pitBuffer) const
 	if (fileSize % ReceiveFilePartPacket::kDataSize != 0)
 		transferCount++;
 
-	unsigned char *buffer = new unsigned char[fileSize];
-	int offset = 0;
+	vector<unsigned char> buffer(fileSize, 0);
 
 	// NOTE: The PIT file appears to always be padded out to exactly 4 kilobytes.
 	for (int i = 0; i < transferCount; i++)
 	{
-		DumpPartPitFilePacket *requestPacket = new DumpPartPitFilePacket(i);
-		success = SendPacket(requestPacket);
-		delete requestPacket;
+		DumpPartPitFilePacket requestPacket(i);
+		success = SendPacket(&requestPacket);
 
 		if (!success)
 		{
 			InterfaceManager::PrintError("Failed to request PIT file part #%i!\n", i);
-			delete [] buffer;
 			return (0);
 		}
 		
-		ReceiveFilePartPacket *receiveFilePartPacket = new ReceiveFilePartPacket();
-		success = ReceivePacket(receiveFilePartPacket);
+		ReceiveFilePartPacket receiveFilePartPacket;
+		success = ReceivePacket(&receiveFilePartPacket);
 		
 		if (!success)
 		{
 			InterfaceManager::PrintError("Failed to receive PIT file part #%i!\n", i);
-			delete receiveFilePartPacket;
-			delete [] buffer;
 			return (0);
 		}
 
 		// Copy the whole packet data into the buffer.
-		memcpy(buffer + offset, receiveFilePartPacket->GetData(), receiveFilePartPacket->GetReceivedSize());
-		offset += receiveFilePartPacket->GetReceivedSize();
-
-		delete receiveFilePartPacket;
+		unsigned char* pDataStart = receiveFilePartPacket.GetData();
+		unsigned char* pDataEnd = receiveFilePartPacket.GetData() + receiveFilePartPacket.GetReceivedSize();
+		buffer.insert(buffer.end(), pDataStart, pDataEnd);
 	}
 
 	// End file transfer
-	pitFilePacket = new PitFilePacket(PitFilePacket::kRequestEndTransfer);
-	success = SendPacket(pitFilePacket);
-	delete pitFilePacket;
+	PitFilePacket pitFilePacket2(PitFilePacket::kRequestEndTransfer);
+	success = SendPacket(&pitFilePacket);
 
 	if (!success)
 	{
 		InterfaceManager::PrintError("Failed to send request to end PIT file transfer!\n");
-		delete [] buffer;
 		return (0);
 	}
 
-	pitFileResponse = new PitFileResponse();
-	success = ReceivePacket(pitFileResponse);
-	delete pitFileResponse;
+	success = ReceivePacket(&pitFileResponse);
 
 	if (!success)
 	{
 		InterfaceManager::PrintError("Failed to receive end PIT file transfer verification!\n");
-		delete [] buffer;
 		return (0);
 	}
 
@@ -732,9 +713,8 @@ bool BridgeManager::SendFile(FILE *file, int destination, int fileIdentifier) co
 		return (false);
 	}
 
-	FileTransferPacket *flashFileTransferPacket = new FileTransferPacket(FileTransferPacket::kRequestFlash);
-	bool success = SendPacket(flashFileTransferPacket);
-	delete flashFileTransferPacket;
+	FileTransferPacket flashFileTransferPacket(FileTransferPacket::kRequestFlash);
+	bool success = SendPacket(&flashFileTransferPacket);
 
 	if (!success)
 	{
@@ -746,9 +726,8 @@ bool BridgeManager::SendFile(FILE *file, int destination, int fileIdentifier) co
 	long fileSize = ftell(file);
 	rewind(file);
 
-	ResponsePacket *fileTransferResponse = new ResponsePacket(ResponsePacket::kResponseTypeFileTransfer);
-	success = ReceivePacket(fileTransferResponse);
-	delete fileTransferResponse;
+	ResponsePacket fileTransferResponse(ResponsePacket::kResponseTypeFileTransfer);
+	success = ReceivePacket(&fileTransferResponse);
 
 	if (!success)
 	{
@@ -790,9 +769,8 @@ bool BridgeManager::SendFile(FILE *file, int destination, int fileIdentifier) co
 			return (false);
 		}
 
-		fileTransferResponse = new ResponsePacket(ResponsePacket::kResponseTypeFileTransfer);
-		bool success = ReceivePacket(fileTransferResponse);
-		delete fileTransferResponse;
+		ResponsePacket fileTransferResponse(ResponsePacket::kResponseTypeFileTransfer);
+		bool success = ReceivePacket(&fileTransferResponse);
 
 		if (!success)
 		{
@@ -936,9 +914,8 @@ bool BridgeManager::SendFile(FILE *file, int destination, int fileIdentifier) co
 			}
 		}
 
-		fileTransferResponse = new ResponsePacket(ResponsePacket::kResponseTypeFileTransfer);
-		success = ReceivePacket(fileTransferResponse, 30000);
-		delete fileTransferResponse;
+		ResponsePacket fileTransferResponse2(ResponsePacket::kResponseTypeFileTransfer);
+		success = ReceivePacket(&fileTransferResponse2, 30000);
 
 		if (!success)
 		{
@@ -958,9 +935,8 @@ bool BridgeManager::ReceiveDump(int chipType, int chipId, FILE *file) const
 	bool success;
 
 	// Start file transfer
-	BeginDumpPacket *beginDumpPacket = new BeginDumpPacket(chipType, chipId);
-	success = SendPacket(beginDumpPacket);
-	delete beginDumpPacket;
+	BeginDumpPacket beginDumpPacket(chipType, chipId);
+	success = SendPacket(&beginDumpPacket);
 
 	if (!success)
 	{
@@ -968,10 +944,9 @@ bool BridgeManager::ReceiveDump(int chipType, int chipId, FILE *file) const
 		return (false);
 	}
 
-	DumpResponse *dumpResponse = new DumpResponse();
-	success = ReceivePacket(dumpResponse);
-	unsigned int dumpSize = dumpResponse->GetDumpSize();
-	delete dumpResponse;
+	DumpResponse dumpResponse;
+	success = ReceivePacket(&dumpResponse);
+	unsigned int dumpSize = dumpResponse.GetDumpSize();
 
 	if (!success)
 	{
@@ -983,60 +958,51 @@ bool BridgeManager::ReceiveDump(int chipType, int chipId, FILE *file) const
 	if (transferCount % ReceiveFilePartPacket::kDataSize != 0)
 		transferCount++;
 
-	char *buffer = new char[kDumpBufferSize * ReceiveFilePartPacket::kDataSize];
-	int bufferOffset = 0;
+	vector<char> buffer(kDumpBufferSize * ReceiveFilePartPacket::kDataSize, 0);
 
 	for (unsigned int i = 0; i < transferCount; i++)
 	{
-		DumpPartFileTransferPacket *dumpPartPacket = new DumpPartFileTransferPacket(i);
-		success = SendPacket(dumpPartPacket);
-		delete dumpPartPacket;
+		DumpPartFileTransferPacket dumpPartPacket(i);
+		success = SendPacket(&dumpPartPacket);
 
 		if (!success)
 		{
 			InterfaceManager::PrintError("Failed to request dump part #%i!\n", i);
-			delete [] buffer;
 			return (false);
 		}
 		
-		ReceiveFilePartPacket *receiveFilePartPacket = new ReceiveFilePartPacket();
-		success = ReceivePacket(receiveFilePartPacket);
+		ReceiveFilePartPacket receiveFilePartPacket;
+		success = ReceivePacket(&receiveFilePartPacket);
 		
 		if (!success)
 		{
 			InterfaceManager::PrintError("Failed to receive dump part #%i!\n", i);
 			continue;
-			delete receiveFilePartPacket;
-			delete [] buffer;
 			return (true);
 		}
 
-		if (bufferOffset + receiveFilePartPacket->GetReceivedSize() > kDumpBufferSize * ReceiveFilePartPacket::kDataSize)
+		if (buffer.size() + receiveFilePartPacket.GetReceivedSize() > kDumpBufferSize * ReceiveFilePartPacket::kDataSize)
 		{
 			// Write the buffer to the output file
-			fwrite(buffer, 1, bufferOffset, file);
-			bufferOffset = 0;
+			fwrite(&buffer.front(), 1, buffer.size(), file);
+			buffer.clear();
 		}
 
 		// Copy the packet data into pitFile.
-		memcpy(buffer + bufferOffset, receiveFilePartPacket->GetData(), receiveFilePartPacket->GetReceivedSize());
-		bufferOffset += receiveFilePartPacket->GetReceivedSize();
-
-		delete receiveFilePartPacket;
+		unsigned char* pDataBegin = receiveFilePartPacket.GetData();
+		unsigned char* pDataEnd = receiveFilePartPacket.GetData() + receiveFilePartPacket.GetReceivedSize();
+		buffer.insert(buffer.end(), pDataBegin, pDataEnd);
 	}
 
-	if (bufferOffset != 0)
+	if (!buffer.empty())
 	{
 		// Write the buffer to the output file
-		fwrite(buffer, 1, bufferOffset, file);
+		fwrite(&buffer.front(), 1, buffer.size(), file);
 	}
 	
-	delete [] buffer;
-
 	// End file transfer
-	FileTransferPacket *fileTransferPacket = new FileTransferPacket(FileTransferPacket::kRequestEnd);
-	success = SendPacket(fileTransferPacket);
-	delete fileTransferPacket;
+	FileTransferPacket fileTransferPacket(FileTransferPacket::kRequestEnd);
+	success = SendPacket(&fileTransferPacket);
 
 	if (!success)
 	{
@@ -1044,9 +1010,8 @@ bool BridgeManager::ReceiveDump(int chipType, int chipId, FILE *file) const
 		return (false);
 	}
 
-	ResponsePacket *responsePacket = new ResponsePacket(ResponsePacket::kResponseTypeFileTransfer);
-	success = ReceivePacket(responsePacket);
-	delete responsePacket;
+	ResponsePacket responsePacket(ResponsePacket::kResponseTypeFileTransfer);
+	success = ReceivePacket(&responsePacket);
 
 	if (!success)
 	{
@@ -1061,9 +1026,8 @@ bool BridgeManager::RebootDevice(void) const
 {
 	InterfaceManager::Print("Rebooting device...\n");
 
-	EndSessionPacket *rebootDevicePacket = new EndSessionPacket(EndSessionPacket::kRequestRebootDevice);
-	bool success = SendPacket(rebootDevicePacket);
-	delete rebootDevicePacket;
+	EndSessionPacket rebootDevicePacket(EndSessionPacket::kRequestRebootDevice);
+	bool success = SendPacket(&rebootDevicePacket);
 
 	if (!success)
 	{
@@ -1071,9 +1035,8 @@ bool BridgeManager::RebootDevice(void) const
 		return (false);
 	}
 
-	ResponsePacket *rebootDeviceResponse = new ResponsePacket(ResponsePacket::kResponseTypeEndSession);
-	success = ReceivePacket(rebootDeviceResponse);
-	delete rebootDeviceResponse;
+	ResponsePacket rebootDeviceResponse(ResponsePacket::kResponseTypeEndSession);
+	success = ReceivePacket(&rebootDeviceResponse);
 
 	if (!success)
 	{

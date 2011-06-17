@@ -50,17 +50,17 @@ namespace Heimdall
 
 				// Regular arguments
 				kFlashArgPit,
-				kFlashArgFactoryFs,
-				kFlashArgCache,
-				kFlashArgDatabaseData,
 				kFlashArgPrimaryBootloader,
 				kFlashArgSecondaryBootloader,
 				kFlashArgSecondaryBootloaderBackup,
-				kFlashArgParam,
-				kFlashArgKernel,
 				kFlashArgRecovery,
+				kFlashArgKernel,
+				kFlashArgParam,
+				kFlashArgFactoryFs,
 				kFlashArgEfs,
 				kFlashArgModem,
+				kFlashArgCache,
+				kFlashArgDatabaseData,
 
 				kFlashArgNormalBoot,
 				kFlashArgSystem,
@@ -100,6 +100,8 @@ namespace Heimdall
 			};
 
 			static string actionNames[kActionCount];
+
+			static map<string, int> flashArgumentMap;
 
 			static string flashArgumentNames[kFlashArgCount * 2];
 			static string dumpArgumentNames[kDumpArgCount * 2];

@@ -28,6 +28,9 @@ struct libusb_context;
 struct libusb_device;
 struct libusb_device_handle;
 
+#include <vector>
+using std::vector;
+
 namespace Heimdall
 {
 	class InboundPacket;
@@ -106,7 +109,7 @@ namespace Heimdall
 			bool ReceivePacket(InboundPacket *packet, int timeout = 3000) const;
 
 			bool SendPitFile(FILE *file) const;
-			int ReceivePitFile(unsigned char **pitBuffer) const;
+			int ReceivePitFile(vector<unsigned char> *pitBuffer) const;
 
 			bool SendFile(FILE *file, int destination, int fileIdentifier = -1) const;
 			bool ReceiveDump(int chipType, int chipId, FILE *file) const;

@@ -23,6 +23,7 @@
 #include <map>
 #include <stdio.h>
 #include <string>
+#include <memory>
 
 // Heimdall
 #include "BridgeManager.h"
@@ -37,21 +38,20 @@ using namespace std;
 using namespace Heimdall;
 
 // Known partitions
-enum
+enum EKnownPartition
 {
 	kKnownPartitionPit = 0,
-	kKnownPartitionFactoryFs,
-	kKnownPartitionCache,
-	kKnownPartitionDatabaseData,
 	kKnownPartitionPrimaryBootloader,
 	kKnownPartitionSecondaryBootloader,
 	kKnownPartitionSecondaryBootloaderBackup,
-	kKnownPartitionParam,
-	kKnownPartitionKernel,
 	kKnownPartitionRecovery,
+	kKnownPartitionKernel,
+	kKnownPartitionParam,
 	kKnownPartitionEfs,
 	kKnownPartitionModem,
-
+	kKnownPartitionFactoryFs,
+	kKnownPartitionCache,
+	kKnownPartitionDatabaseData,
 	kKnownPartitionNormalBoot,
 	kKnownPartitionSystem,
 	kKnownPartitionUserData,
@@ -67,15 +67,17 @@ enum
 
 vector<const char *> knownPartitionNames[kKnownPartitionCount];
 
-struct PartitionNameFilePair
+struct PartitionNameFileData
 {
 	string partitionName;
 	FILE *file;
+	int partitionIdentifier;
 
-	PartitionNameFilePair(const char *partitionName, FILE *file)
+	PartitionNameFileData(const char *partitionName, FILE *file, int partitionIdentifier)
 	{
 		this->partitionName = partitionName;
 		this->file = file;
+		this->partitionIdentifier = partitionIdentifier;
 	}
 };
 
@@ -108,6 +110,70 @@ void initialiseKnownPartitionNames(void)
 	knownPartitionNames[kKnownPartitionData].push_back("DATAFS");
 	knownPartitionNames[kKnownPartitionUms].push_back("UMS.EN");
 	knownPartitionNames[kKnownPartitionEmmc].push_back("GANG");
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-pit", kKnownPartitionPit));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("pit", kKnownPartitionPit));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-factoryfs", kKnownPartitionFactoryFs));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("fs", kKnownPartitionFactoryFs));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-cache", kKnownPartitionCache));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("cache", kKnownPartitionCache));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-dbdata", kKnownPartitionDatabaseData));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("db", kKnownPartitionDatabaseData));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-primary-boot", kKnownPartitionPrimaryBootloader));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("boot", kKnownPartitionPrimaryBootloader));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-secondary-boot", kKnownPartitionSecondaryBootloader));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("sbl", kKnownPartitionSecondaryBootloader));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-secondary-boot-backup", kKnownPartitionSecondaryBootloaderBackup));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("sbl2", kKnownPartitionSecondaryBootloaderBackup));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-param", kKnownPartitionParam));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("param", kKnownPartitionParam));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-kernel", kKnownPartitionKernel));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("z", kKnownPartitionKernel));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-recovery", kKnownPartitionRecovery));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("rec", kKnownPartitionRecovery));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-efs", kKnownPartitionEfs));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("efs", kKnownPartitionEfs));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-modem", kKnownPartitionModem));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("m", kKnownPartitionModem));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-system", kKnownPartitionSystem));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("sys", kKnownPartitionSystem));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-normal-boot", kKnownPartitionNormalBoot));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("norm", kKnownPartitionNormalBoot));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-user-data", kKnownPartitionUserData));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("udata", kKnownPartitionUserData));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-hidden", kKnownPartitionHidden));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("hide", kKnownPartitionHidden));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-movinand", kKnownPartitionMovinand));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("nand", kKnownPartitionMovinand));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-fota", kKnownPartitionFota));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("fota", kKnownPartitionFota));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-data", kKnownPartitionData));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("data", kKnownPartitionData));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-ums", kKnownPartitionUms));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("ums", kKnownPartitionUms));
+
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("-emmc", kKnownPartitionEmmc));
+	InterfaceManager::flashArgumentMap.insert(pair<string, int>("emmc", kKnownPartitionEmmc));
+
 }
 
 bool openFiles(const map<string, string>& argumentMap, map<string, FILE *>& argumentFileMap)
@@ -157,30 +223,38 @@ bool openFiles(const map<string, string>& argumentMap, map<string, FILE *>& argu
 	return (true);
 }
 
-bool mapFilesToPartitions(const map<string, FILE *>& argumentFileMap, const PitData *pitData, map<unsigned int, PartitionNameFilePair>& partitionFileMap)
+bool mapFilesToPartitions(const map<string, FILE *>& argumentFileMap, const PitData *pitData, map<unsigned int, PartitionNameFileData>& partitionFileMap)
 {
+	partitionFileMap.clear();
 	map<string, FILE *>::const_iterator it = argumentFileMap.begin();
-
-	for (it = argumentFileMap.begin(); it != argumentFileMap.end(); it++)
+	map<string, FILE *>::const_iterator itEnd = argumentFileMap.end();
+	for (; it != itEnd; ++it)
 	{
 		int partitionIndex = atoi(it->first.substr(it->first.find_first_not_of('-')).c_str());
 
 		const PitEntry *pitEntry = nullptr;
+		int knownPartition = -1;
 
 		// Was the argument a partition index?
 		if (partitionIndex > 0 || it->first.compare("-0") == 0)
 		{
 			pitEntry = pitData->FindEntry(partitionIndex);
+			knownPartition = partitionIndex;
 		}
 		else
 		{
 			// The argument wasn't a partition index, so it must be a known partition name.
-			int knownPartition;
 
-			for (knownPartition = 0; knownPartition < kKnownPartitionCount; knownPartition++)
+			map<string, int>::const_iterator itKnownMap = InterfaceManager::flashArgumentMap.begin();
+			map<string, int>::const_iterator itKnownMapEnd = InterfaceManager::flashArgumentMap.end();
+
+			for ( ; itKnownMap != itKnownMapEnd; ++itKnownMap)
 			{
-				if (it->first.compare(InterfaceManager::flashArgumentNames[InterfaceManager::kFlashArgPit + knownPartition]) == 0)
+				if (it->first.compare(itKnownMap->first) == 0)
+				{
+					knownPartition = itKnownMap->second;
 					break;
+				}
 			}
 
 			// Check for the partition in the PIT file using all known names.
@@ -199,8 +273,17 @@ bool mapFilesToPartitions(const map<string, FILE *>& argumentFileMap, const PitD
 			return (false);
 		}
 
-		PartitionNameFilePair partitionNameFilePair(pitEntry->GetPartitionName(), it->second);
-		partitionFileMap.insert(pair<unsigned int, PartitionNameFilePair>(pitEntry->GetPartitionIdentifier(), partitionNameFilePair));
+		PartitionNameFileData partitionNameFileData(pitEntry->GetPartitionName(), it->second, pitEntry->GetPartitionIdentifier());
+		//partitionFileMap.insert(pair<unsigned int, PartitionNameFilePair>(pitEntry->GetPartitionIdentifier(), partitionNameFilePair));
+		try
+		{
+			partitionFileMap.insert(pair<unsigned int, PartitionNameFileData>(knownPartition, partitionNameFileData));
+		}
+		catch (...)
+		{
+			InterfaceManager::PrintError("Unable to allocate partition %d. Possible duplicate.\n", knownPartition);
+			return false;
+		}
 	}
 
 	return (true);
@@ -214,13 +297,16 @@ void closeFiles(map<string, FILE *> argumentfileMap)
 	argumentfileMap.clear();
 }
 
-int downloadPitFile(BridgeManager *bridgeManager, unsigned char **pitBuffer)
+int downloadPitFile(BridgeManager *bridgeManager, vector<unsigned char> *pitBuffer)
 {
+	if (!pitBuffer)
+		return (-1);
+
 	InterfaceManager::Print("Downloading device's PIT file...\n");
 
 	int devicePitFileSize = bridgeManager->ReceivePitFile(pitBuffer);
 
-	if (!*pitBuffer)
+	if (pitBuffer->empty())
 	{
 		InterfaceManager::PrintError("Failed to download PIT file!\n");
 
@@ -312,15 +398,14 @@ bool flashFile(BridgeManager *bridgeManager, unsigned int partitionIndex, const 
 	return (true);
 }
 
-bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFileMap, bool repartition)
+bool prepareDeviceToFlash(BridgeManager *bridgeManager, int totalBytesToFlash)
 {
-	bool success;
-	
+	bool success = false;
 	// ---------- GET DEVICE INFORMATION ----------
 
-	DeviceInfoPacket *deviceInfoPacket = new DeviceInfoPacket(DeviceInfoPacket::kUnknown1);
-	success = bridgeManager->SendPacket(deviceInfoPacket);
-	delete deviceInfoPacket;
+	DeviceInfoPacket deviceInfoPacket(DeviceInfoPacket::kUnknown1);
+	success = bridgeManager->SendPacket(&deviceInfoPacket);
+
 
 	if (!success)
 	{
@@ -328,10 +413,9 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 		return (false);
 	}
 
-	DeviceInfoResponse *deviceInfoResponse = new DeviceInfoResponse();
-	success = bridgeManager->ReceivePacket(deviceInfoResponse);
-	int unknown = deviceInfoResponse->GetUnknown();
-	delete deviceInfoResponse;
+	DeviceInfoResponse deviceInfoResponse;
+	success = bridgeManager->ReceivePacket(&deviceInfoResponse);
+	int unknown = deviceInfoResponse.GetUnknown();
 
 	if (!success)
 	{
@@ -347,9 +431,8 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 	}
 
 	// -------------------- KIES DOESN'T DO THIS --------------------
-	deviceInfoPacket = new DeviceInfoPacket(DeviceInfoPacket::kUnknown2);
-	success = bridgeManager->SendPacket(deviceInfoPacket);
-	delete deviceInfoPacket;
+	DeviceInfoPacket deviceInfoPacket2(DeviceInfoPacket::kUnknown2);
+	success = bridgeManager->SendPacket(&deviceInfoPacket2);
 
 	if (!success)
 	{
@@ -357,10 +440,8 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 		return (false);
 	}	
 
-	deviceInfoResponse = new DeviceInfoResponse();
-	success = bridgeManager->ReceivePacket(deviceInfoResponse);
-	unknown = deviceInfoResponse->GetUnknown();
-	delete deviceInfoResponse;
+	success = bridgeManager->ReceivePacket(&deviceInfoResponse);
+	unknown = deviceInfoResponse.GetUnknown();
 
 	if (!success)
 	{
@@ -376,17 +457,8 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 	}
 	// --------------------------------------------------------------
 
-	int totalBytes = 0;
-	for (map<string, FILE *>::const_iterator it = argumentFileMap.begin(); it != argumentFileMap.end(); it++)
-	{
-		fseek(it->second, 0, SEEK_END);
-		totalBytes += ftell(it->second);
-		rewind(it->second);
-	}
-	
-	deviceInfoPacket = new DeviceInfoPacket(DeviceInfoPacket::kTotalBytes, totalBytes);
-	success = bridgeManager->SendPacket(deviceInfoPacket);
-	delete deviceInfoPacket;
+	DeviceInfoPacket deviceInfoPacket3(DeviceInfoPacket::kTotalBytes, totalBytesToFlash);
+	success = bridgeManager->SendPacket(&deviceInfoPacket3);
 
 	if (!success)
 	{
@@ -394,10 +466,8 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 		return (false);
 	}
 
-	deviceInfoResponse = new DeviceInfoResponse();
-	success = bridgeManager->ReceivePacket(deviceInfoResponse);
-	unknown = deviceInfoResponse->GetUnknown();
-	delete deviceInfoResponse;
+	success = bridgeManager->ReceivePacket(&deviceInfoResponse);
+	unknown = deviceInfoResponse.GetUnknown();
 
 	if (!success)
 	{
@@ -413,7 +483,29 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 
 	// -----------------------------------------------------
 
-	PitData *pitData;
+	return true;
+}
+
+bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFileMap, bool repartition)
+{
+	bool success = false;
+
+	int totalBytes = 0;
+	for (map<string, FILE *>::const_iterator it = argumentFileMap.begin(); it != argumentFileMap.end(); it++)
+	{
+		fseek(it->second, 0, SEEK_END);
+		totalBytes += ftell(it->second);
+		rewind(it->second);
+	}
+
+	success = prepareDeviceToFlash(bridgeManager, totalBytes);
+	if (!success)
+	{
+		InterfaceManager::PrintError("Failed to get device information and prepare flashing\n");
+		return (false);
+	}
+
+	PitData pitData;
 	FILE *localPitFile = nullptr;
 
 	if (repartition)
@@ -432,61 +524,52 @@ bool attemptFlash(BridgeManager *bridgeManager, map<string, FILE *> argumentFile
 		localPitFile = it->second;
 
 		// Load the local pit file into memory.
-		unsigned char *pitFileBuffer = new unsigned char[4096];
-		memset(pitFileBuffer, 0, 4096);
+		vector<unsigned char> pitFileBuffer(4096, 0);
 
 		fseek(localPitFile, 0, SEEK_END);
 		long localPitFileSize = ftell(localPitFile);
 		rewind(localPitFile);
 
 		// dataRead is discarded, it's here to remove warnings.
-		int dataRead = fread(pitFileBuffer, 1, localPitFileSize, localPitFile);
+		int dataRead = fread(&pitFileBuffer.front(), 1, localPitFileSize, localPitFile);
 		rewind(localPitFile);
 
-		pitData = new PitData();
-		pitData->Unpack(pitFileBuffer);
-
-		delete [] pitFileBuffer;
+		pitData.Unpack(&pitFileBuffer.front());
 	}
 	else
 	{
 		// If we're not repartitioning then we need to retrieve the device's PIT file and unpack it.
 
-		unsigned char *pitFileBuffer;
+		vector<unsigned char> pitFileBuffer;
 		downloadPitFile(bridgeManager, &pitFileBuffer);
 
-		pitData = new PitData();
-		pitData->Unpack(pitFileBuffer);
-
-		delete [] pitFileBuffer;
+		pitData.Unpack(&pitFileBuffer.front());
 	}
 
-	map<unsigned int, PartitionNameFilePair> partitionFileMap;
+	map<unsigned int, PartitionNameFileData> partitionFileMap;
 
 	// Map the files being flashed to partitions stored in PIT file.
-	mapFilesToPartitions(argumentFileMap, pitData, partitionFileMap);
-	
-	delete pitData;
+	mapFilesToPartitions(argumentFileMap, &pitData, partitionFileMap);
 
 	// If we're repartitioning then we need to flash the PIT file first.
 	if (repartition)
 	{
-		for (map<unsigned int, PartitionNameFilePair>::iterator it = partitionFileMap.begin(); it != partitionFileMap.end(); it++)
+		for (map<unsigned int, PartitionNameFileData>::iterator it = partitionFileMap.begin(); it != partitionFileMap.end(); it++)
 		{
 			if (it->second.file == localPitFile)
 			{
-				if (!flashFile(bridgeManager, it->first, it->second.partitionName.c_str(), it->second.file))
+				if (!flashFile(bridgeManager, it->second.partitionIdentifier, it->second.partitionName.c_str(), it->second.file))
 					return (false);
 			}
 		}
 	}
 
 	// Flash all other files
-	for (map<unsigned int, PartitionNameFilePair>::iterator it = partitionFileMap.begin(); it != partitionFileMap.end(); it++)
+	for (map<unsigned int, PartitionNameFileData>::iterator it = partitionFileMap.begin(); it != partitionFileMap.end(); it++)
 	{
 		if (it->second.file != localPitFile)
 		{
-			if (!flashFile(bridgeManager, it->first, it->second.partitionName.c_str(), it->second.file))
+			if (!flashFile(bridgeManager, it->second.partitionIdentifier, it->second.partitionName.c_str(), it->second.file))
 				return (false);
 		}
 	}
@@ -582,11 +665,10 @@ int main(int argc, char **argv)
 	if (argumentMap.find(InterfaceManager::commonArgumentNames[InterfaceManager::kCommonArgDelay]) != argumentMap.end())
 		communicationDelay = atoi(argumentMap.find(InterfaceManager::commonArgumentNames[InterfaceManager::kCommonArgDelay])->second.c_str());
 
-	BridgeManager *bridgeManager = new BridgeManager(verbose, communicationDelay);
+	BridgeManager bridgeManager(verbose, communicationDelay);
 
-	if (!bridgeManager->Initialise())
+	if (!bridgeManager.Initialise())
 	{
-		delete bridgeManager;
 		return (-2);
 	}
 
@@ -602,26 +684,24 @@ int main(int argc, char **argv)
 			if (!openFiles(argumentMap, argumentFileMap))
 			{
 				closeFiles(argumentFileMap);
-				delete bridgeManager;
 
 				return (0);
 			}
 
-			if (!bridgeManager->BeginSession())
+			if (!bridgeManager.BeginSession())
 			{
 				closeFiles(argumentFileMap);
-				delete bridgeManager;
 
 				return (-1);
 			}
 
 			bool repartition = argumentMap.find(InterfaceManager::flashArgumentNames[InterfaceManager::kFlashArgRepartition]) != argumentMap.end();
-			success = attemptFlash(bridgeManager, argumentFileMap, repartition);
+			success = attemptFlash(&bridgeManager, argumentFileMap, repartition);
 
 			if (noReboot)
-				success = bridgeManager->EndSession() && success;
+				success = bridgeManager.EndSession() && success;
 			else
-				success = bridgeManager->EndSession() && bridgeManager->RebootDevice() && success;
+				success = bridgeManager.EndSession() && bridgeManager.RebootDevice() && success;
 
 			closeFiles(argumentFileMap);
 
@@ -630,18 +710,17 @@ int main(int argc, char **argv)
 
 		case InterfaceManager::kActionClosePcScreen:
 		{
-			if (!bridgeManager->BeginSession())
+			if (!bridgeManager.BeginSession())
 			{
-				delete bridgeManager;
 				return (-1);
 			}
 
 			InterfaceManager::Print("Attempting to close connect to pc screen...\n");
 
 			if (noReboot)
-				success = bridgeManager->EndSession();
+				success = bridgeManager.EndSession();
 			else
-				success = bridgeManager->EndSession() && bridgeManager->RebootDevice();
+				success = bridgeManager.EndSession() && bridgeManager.RebootDevice();
 
 			if (success)
 				InterfaceManager::Print("Attempt complete\n");
@@ -657,7 +736,6 @@ int main(int argc, char **argv)
 			{
 				InterfaceManager::PrintError("Failed to open file \"%s\"\n", outputFilename);
 
-				delete bridgeManager;
 				return (-1);
 			}
 
@@ -668,53 +746,49 @@ int main(int argc, char **argv)
 
 			int chipId = atoi(argumentMap.find(InterfaceManager::dumpArgumentNames[InterfaceManager::kDumpArgChipId])->second.c_str());
 
-			if (!bridgeManager->BeginSession())
+			if (!bridgeManager.BeginSession())
 			{
 				fclose(dumpFile);
 
-				delete bridgeManager;
 				return (-1);
 			}
 
-			success = bridgeManager->ReceiveDump(chipType, chipId, dumpFile);
+			success = bridgeManager.ReceiveDump(chipType, chipId, dumpFile);
 
 			fclose(dumpFile);
 
 			if (noReboot)
-				success = bridgeManager->EndSession() && success;
+				success = bridgeManager.EndSession() && success;
 			else
-				success = bridgeManager->EndSession() && bridgeManager->RebootDevice() && success;
+				success = bridgeManager.EndSession() && bridgeManager.RebootDevice() && success;
 
 			break;
 		}
 
 		case InterfaceManager::kActionPrintPit:
 		{
-			if (!bridgeManager->BeginSession())
+			if (!bridgeManager.BeginSession())
 			{
-				delete bridgeManager;
 				return (-1);
 			}
 
-			unsigned char *devicePit;
-
-			if (downloadPitFile(bridgeManager, &devicePit) < -1)
+			vector<unsigned char> devicePit;
+			if (downloadPitFile(&bridgeManager, &devicePit) < -1)
 			{
-				if (!bridgeManager->EndSession())
+				if (!bridgeManager.EndSession())
 					return (-1);
 
 				if (!noReboot)
-					bridgeManager->RebootDevice();
+					bridgeManager.RebootDevice();
 
-				delete bridgeManager;
 				return (-1);
 			}
 
-			PitData *pitData = new PitData();
+			PitData pitData;
 
-			if (pitData->Unpack(devicePit))
+			if (pitData.Unpack(&devicePit.front()))
 			{
-				pitData->Print();
+				pitData.Print();
 				success = true;
 			}
 			else
@@ -723,18 +797,14 @@ int main(int argc, char **argv)
 				success = false;
 			}
 
-			delete pitData;
-
 			if (noReboot)
-				success = bridgeManager->EndSession() && success;
+				success = bridgeManager.EndSession() && success;
 			else
-				success = bridgeManager->EndSession() && bridgeManager->RebootDevice() && success;
+				success = bridgeManager.EndSession() && bridgeManager.RebootDevice() && success;
 
 			break;
 		}
 	}
-
-	delete bridgeManager;
 
 	return ((success) ? 0 : -1);
 }

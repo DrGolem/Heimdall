@@ -32,6 +32,8 @@ using namespace Heimdall;
 
 string InterfaceManager::actionNames[kActionCount] = { "flash", "close-pc-screen", "dump", "print-pit", "help" };
 
+map<string, int> InterfaceManager::flashArgumentMap;
+
 string InterfaceManager::flashArgumentNames[kFlashArgCount * 2] = {
 	// --- Long Names ---
 	"-repartition",
